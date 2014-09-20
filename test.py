@@ -1,26 +1,37 @@
 from flask import Flask
-from flask.ext.sqlalchemy import SQLAlchemy
+from flask import render_template
+from sqlalchemy import *
+from flask.ext.wtf import Form
+from wtforms import StringField, PasswordField
+from wtforms.validators import DataRequired
 
 app = Flask(__name__)
-app.config['SQALCHEMY_DATABASE_URI'] = 'postgresql://localhost/alarmdb'
-db = SQLAlchemy(app)
+engine = create_engine('postgresql://localhost:5432/alarmdb', pool_size=20, max_overflow=0)
+metadata = MetaData(bind=engine)
+app.config.update(
+	DEBUG=True,
+    SECRET_KEY='...'
+)
 
-class User(db.Model):
-	id = db.Column(db.Integer, primary_key=True)
-	username = db.Column(db.String(20), unique=True)
-	email = db.Column(db.String(120), unique=True)
-	password = db.Column(db.String(120))
 
-	def __init__(self, username, email, password):
-		self.username = username
-		self.email = email
+class SignUp(Form):
+	username = StringField('username', validators=[DataRequired()])
+	email = StringField('email', validators=[DataRequired()])
+	password = PasswordField('password', validators=[DataRequired()])
 
-	def __repr__(self):
-		return '<User %r>' % self.username
 
-@app.route('/')
-def test():
-	return "DURR"
+@app.route('/', methods=('GET', 'POST'))
+def index():
+	signup = SignUp()
+	if signup.validate_on_submit():
+		return redirect('/main')
+	#users = Table('users', metadata, autoload=True)
+	#example = users.select(users.c.name == 'test').execute().first()
+	return render_template('index.html', signup=signup)
+
+@app.route('/main')
+def dashboard():
+	return render_template('main.html')
 
 if __name__ == '__main__':
 	app.run()

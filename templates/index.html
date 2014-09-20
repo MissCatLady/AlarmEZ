@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<title> AlarmEZ - Don't sleep your life away </title>
+</head>
+
+<body>
+
+<div id='login'>
+	<form method=""
+</div>
+
+<div id='signup'>
+<form method="POST" action="/">
+	{{ signup.csrf_token }}
+	{{ signup.username.label }} {{ signup.username(size=20)}}
+	{{ signup.email.label }} {{ signup.email(size=50)}}
+	{{ signup.password.label }} {{signup.password(size=20)}}
+	<input type="submit" value="Sign Up">
+</form>
+</div>
+
+</body>
+</html>
