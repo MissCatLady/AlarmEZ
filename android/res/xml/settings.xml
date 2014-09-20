@@ -1,0 +1,48 @@
+<PreferenceScreen  xmlns:android="http://schemas.android.com/apk/res/android">
+	
+    <PreferenceCategory
+        android:title="User"
+        android:key="user">
+        
+        <EditTextPreference
+            android:key="email"
+            android:title="Email"
+            android:persistent="true">
+        </EditTextPreference>
+        
+        <EditTextPreference
+            android:key="password"
+            android:title="Password"
+            android:persistent="true">
+        </EditTextPreference>
+        
+        
+    </PreferenceCategory>
+	
+	<PreferenceCategory 
+        android:title="ALARM"
+        android:key="alarm">
+        
+        <RingtonePreference
+            android:key="alarm_ringtone"
+            android:title="Ringtone"
+            android:ringtoneType="alarm"/>
+        
+        <ListPreference 
+            android:key="alarm_silence"
+            android:title="Silence after"
+            android:entries="@array/silence"
+            android:entryValues="@array/silence_values">
+        </ListPreference>
+        
+		<SeekBarPreference
+		    android:key="alarm_volume"
+		    android:title="Volume"
+		    android:max="100"
+		    android:defaultValue="100">    
+		</SeekBarPreference>
+
+		
+    </PreferenceCategory>
+
+</PreferenceScreen>

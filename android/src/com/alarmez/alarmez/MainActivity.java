@@ -1,26 +1,31 @@
 package com.alarmez.alarmez;
 
-import android.support.v4.app.NotificationCompat;
-import android.support.v7.app.ActionBarActivity;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
-import android.content.Context;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Fragment;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.database.Cursor;
+import android.media.RingtoneManager;
 import android.os.Bundle;
+import android.preference.PreferenceActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Toast;
 
 
-public class MainActivity extends ActionBarActivity {
-
+public class MainActivity extends Activity{
+	
+	Fragment currentFragment = null;
+	
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         startService(new Intent(getBaseContext(), AlarmEZService.class));
+        
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -36,9 +41,36 @@ public class MainActivity extends ActionBarActivity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_settings) {
-        	setContentView(R.layout.settings);
-            return true;
+        	currentFragment = new SettingsFragment();
+        	// Display the fragment as the main content.
+            getFragmentManager().beginTransaction()
+            	.replace(android.R.id.content, currentFragment)
+                .commit();
+        	return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    @Override
+    public void onBackPressed(){
+    	if(currentFragment != null){
+    		getFragmentManager().beginTransaction()
+    		.detach(currentFragment)
+    		.commit();
+    		currentFragment = null;
+    	}else{
+    		super.onBackPressed();
+    	}
+    }
+    
+    public void selectRingtone(View v){
+
+    	RingtoneManager ringtoneManager = new RingtoneManager(this);
+    	ringtoneManager.setType(RingtoneManager.TYPE_ALARM);
+        Cursor alarmCursor = ringtoneManager.getCursor();
+        CharSequence items[] = new CharSequence[alarmCursor.getCount()];
+        for(int i = 0; i < alarmCursor.getCount(); i++)
+        	items[i] = ringtoneManager.getRingtone(i).getTitle(this.getApplicationContext());
+        
     }
 }
