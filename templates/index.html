@@ -6,19 +6,32 @@
 
 <body>
 
+{% if error_msg %}
+Error: {{ error_msg }}
+{% endif %}
+
+{% if not error_msg %}
 <div id='login'>
-	<form method=""
+	<form method="POST" action="/">
+		{{ login.hidden_tag() }}
+		{{ login.email.label }} {{ login.email(size=50)}}
+		{{ login.password.label }} {{ login.password(size=20)}}
+
+		<input type="submit" value="Log In">
+	</form>
 </div>
 
 <div id='signup'>
 <form method="POST" action="/">
-	{{ signup.csrf_token }}
+	{{ signup.hidden_tag() }}
 	{{ signup.username.label }} {{ signup.username(size=20)}}
 	{{ signup.email.label }} {{ signup.email(size=50)}}
 	{{ signup.password.label }} {{signup.password(size=20)}}
+
 	<input type="submit" value="Sign Up">
 </form>
 </div>
+{% endif %}
 
 </body>
 </html>
