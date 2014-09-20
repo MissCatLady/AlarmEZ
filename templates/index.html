@@ -17,7 +17,7 @@ Error: {{ error_msg }}
 		{{ login.email.label }} {{ login.email(size=50)}}
 		{{ login.password.label }} {{ login.password(size=20)}}
 
-		<input type="submit" value="Log In">
+		<input type="submit" name='btn' value="Log In">
 	</form>
 </div>
 
@@ -28,7 +28,7 @@ Error: {{ error_msg }}
 	{{ signup.email.label }} {{ signup.email(size=50)}}
 	{{ signup.password.label }} {{signup.password(size=20)}}
 
-	<input type="submit" value="Sign Up">
+	<input type="submit" name='btn' value="Sign Up">
 </form>
 </div>
 {% endif %}

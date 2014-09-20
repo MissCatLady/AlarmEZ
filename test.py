@@ -12,6 +12,7 @@ app.config.update(
     SECRET_KEY='...'
 )
 
+users = Table('users', metadata, autoload=True)
 
 class SignUp(Form):
 	username = StringField('username', validators=[DataRequired()])
@@ -27,19 +28,20 @@ class LogIn(Form):
 
 @app.route('/', methods=('GET', 'POST'))
 def index():
-	signup = SignUp()
-	login = LogIn()
+	signup = SignUp(prefix="signup")
+	login = LogIn(prefix="login")
 	if request.method =='GET':
 		print "nope"
 		return render_template('index.html', signup=signup, login=login)
 	else:
 
-		if login.validate_on_submit():
+		if login.validate_on_submit() and request.form['btn']=='Log In':
 			print "posted"
-			return dashboard(login.email.data, login.email.password)
-		elif signup.validate_on_submit():
+			return dashboard(login.email.data, login.password.data)
+		elif signup.validate_on_submit() and request.form['btn']=='Sign Up':
 			print "new user"
-			return redirect('/registration')
+			#TODO validate unique email
+			return new_user(signup.email.data, signup.username.data, signup.password.data)
 		else:
 			flash('Error')
 			return render_template('index.html', signup=signup)
@@ -48,15 +50,17 @@ def index():
 
 @app.route('/main')
 def dashboard(email, password):
- 	users = Table('users', metadata, autoload=True)
+	#TODO SESSIONS
 
  	try:
 		user = users.select(users.c.email == email).execute().first()
 		username = user.username
+
+		#TODOhash salt password
 		#user.email/user.password/user.app/user.uid
-		#check password
-		#hash salt password
-		return render_template('main.html', username=username)
+		#TODOcheck password
+
+		return render_template('dashboard.html', username=username)
 
 	except AttributeError:
 		error_msg = "no user exists"
@@ -64,11 +68,25 @@ def dashboard(email, password):
 
 
 @app.route('/registration')
-def new_user(email):
-	#throw user information in database
-	#redirect to dashboard
-	#make dashboard message for new user
-	return registration
+def new_user(email, username, password):
+
+	#TODO: hash and salt password
+
+
+	#insert user information
+	user_entry = users.insert().values(username=username, email=email, 
+		password=password)
+	connection = engine.connect()
+	res = connection.execute(user_entry)
+	print res.inserted_primary_key
+	connection.close()
+	
+	return render_template('dashboard.html', new_user="Thanks for registering!", username=username)
+
+@app.route('/logout')
+def logout():
+	#TODO SESSIONS
+	return redirect('/')
 
 if __name__ == '__main__':
 	app.run()
