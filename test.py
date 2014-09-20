@@ -1,8 +1,10 @@
-from flask import Flask, render_template, redirect, request, flash
+from flask import Flask, make_response, render_template, redirect, request, flash, session, url_for, escape
 from sqlalchemy import *
 from flask.ext.wtf import Form
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired, Email
+from flask.ext.scrypt import generate_password_hash, generate_random_salt, check_password_hash
+import datetime
 
 app = Flask(__name__)
 engine = create_engine('postgresql://localhost:5432/alarmdb', pool_size=20, max_overflow=0)
@@ -13,6 +15,14 @@ app.config.update(
 )
 
 users = Table('users', metadata, autoload=True)
+
+
+def validate_login():
+	session_token = request.cookies.get('session_token')
+	if(session_token != ""):
+		user = users.select(users.c.session_token == session_token).execute().first()
+		return user
+	return None
 
 class SignUp(Form):
 	username = StringField('username', validators=[DataRequired()])
@@ -31,7 +41,10 @@ def index():
 	signup = SignUp(prefix="signup")
 	login = LogIn(prefix="login")
 	if request.method =='GET':
-		print "nope"
+		user = validate_login();
+		if(user):
+			return render_template('dashboard.html', username=user.username)
+		
 		return render_template('index.html', signup=signup, login=login)
 	else:
 
@@ -50,43 +63,62 @@ def index():
 
 @app.route('/main')
 def dashboard(email, password):
-	#TODO SESSIONS
 
  	try:
 		user = users.select(users.c.email == email).execute().first()
 		username = user.username
 
-		#TODOhash salt password
-		#user.email/user.password/user.app/user.uid
-		#TODOcheck password
+		if check_password_hash(password, user.password, user.salt):
+			session_token = generate_password_hash(email, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+			stmt = update(users).where(users.c.email==email).values(session_token=session_token)
+			connection = engine.connect()
+			connection.execute(stmt)
+			connection.close()
 
-		return render_template('dashboard.html', username=username)
+			resp = make_response(render_template('dashboard.html', username=username))
+			resp.set_cookie('session_token', session_token);
+			return resp;
+		else:
+			error_msg = "Incorrect Password"
+			return render_template('/index.html', error_msg=error_msg)
 
 	except AttributeError:
 		error_msg = "no user exists"
 		return render_template('index.html', error_msg=error_msg)
-
+	
 
 @app.route('/registration')
 def new_user(email, username, password):
 
-	#TODO: hash and salt password
-
-
+	#selt + hashing
+	salt = generate_random_salt()
+	password = generate_password_hash(password, salt)
+	session_token = generate_password_hash(email, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 	#insert user information
 	user_entry = users.insert().values(username=username, email=email, 
-		password=password)
+		password=password, salt=salt, session_token = session_token)
 	connection = engine.connect()
 	res = connection.execute(user_entry)
 	print res.inserted_primary_key
 	connection.close()
 	
-	return render_template('dashboard.html', new_user="Thanks for registering!", username=username)
+	resp = make_response(render_template('dashboard.html', new_user="Thanks for registering!", username=username))
+	resp.set_cookie('session_token', session_token);
+	return resp;
 
 @app.route('/logout')
 def logout():
-	#TODO SESSIONS
-	return redirect('/')
+
+	user = validate_login();
+	if(user):
+		stmt = update(users).where(users.c.email==user.email).values(session_token="")
+		connection = engine.connect()
+		connection.execute(stmt)
+		connection.close()
+
+	resp = make_response(redirect('/'))
+	resp.set_cookie('session_token', '');
+	return resp;
 
 if __name__ == '__main__':
 	app.run()
