@@ -1,0 +1,5 @@
+<alarms>
+{% for alarm in user_alarms %}
+	<alarm date="{{alarm.date}}" time="{{alarm.time}}" from="{{alarm.sender_username}}"></alarm>
+{% endfor %}
+</alarms>

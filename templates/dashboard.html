@@ -3,19 +3,175 @@
 <html>
 <head>
 <title> AlarmEZ - User Dashboard </title>
+<link href="/static/css/hexaflip.css" rel="stylesheet" type="text/css">
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<link rel="stylesheet" href="//code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css">
+ <script src="//code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
 </head>
 
 <body>
 
 <h1>User Dashboard</h1>
 
-{% if new_user %}
-{{ new_user}}
+{% if alert%}
+<p>{{alert}}</p>
 {% endif %}
 
-{% if username %}
-hello {{ username }}
+<p>hello {{ username }}</p>
+
+<div id="notifications">
+</div>
+
+<!--Source: http://tympanus.net/codrops/2013/03/07/hexaflip-a-flexible-3d-cube-plugin/-->
+
+<div id="hexaflip-demo3" class="demo"></div>
+
+<p> Set Alarm for:
+<select id="friend-select">
+{% if user %}
+<option value={{user[0]}}>{{username}}</option>
 {% endif %}
+
+{% if friends %}
+	{% for friend in friends %}
+	<option value={{friend.id1}}>{{friend.username}}</option>
+	{% endfor %}
+{% endif %}
+
+</select>
+</p>
+
+<div id="choose-time">
+<p>Date: <input type="text" id="datepicker" size="30"></p>
+<select id="hour-select">
+    <option>1</option>
+    <option>2</option>
+    <option>3</option>
+    <option>4</option>
+    <option>5</option>
+    <option>6</option>
+    <option>7</option>
+    <option>8</option>
+    <option>9</option>
+    <option>10</option>
+    <option>11</option>
+    <option>12</option>
+</select>
+<select id="minute-select">
+    <option>00</option>
+    <option>10</option>
+    <option>20</option>
+    <option>30</option>
+    <option>40</option>
+    <option>50</option>
+</select>
+<select id="meridian-select">
+    <option>am</option>
+    <option>pm</option>
+</select>
+<span id="set-button">set time</span>
+</div>
+<!-- look at this file -->
+<script src="/static/js/hexaflip.js"></script>
+<script>
+var hexaDemo3;
+document.addEventListener('DOMContentLoaded', function(){
+    hexaDemo3 = new HexaFlip(document.getElementById('hexaflip-demo3'));
+
+    setTimeout(function(){
+        var now = new Date,
+            hour = now.getHours(),
+            minute = now.getMinutes().toString(),
+            meridian;
+
+        if(hour > 12){
+            hour = (hour - 12).toString();
+            meridian = 'pm';
+        }else{
+            meridian = 'am';
+            (hour === 0) && (hour = 12);
+            hour = hour.toString();
+        }
+
+        if(minute.length > 1){
+            minute = minute.substr(0, 1) + '0';
+        }else{
+            minute = '00';
+        }
+
+        hexaDemo3.setValue({ hour: hour, minute: minute, meridian: meridian });
+
+    }, 1);
+
+    var hourSelect = document.getElementById('hour-select'),
+        minuteSelect = document.getElementById('minute-select'),
+        meridianSelect = document.getElementById('meridian-select');
+
+    document.getElementById('set-button').addEventListener('click', function(){
+        var time = {
+            hour: hourSelect.value,
+            minute: minuteSelect.value,
+            meridian: meridianSelect.value
+        }
+        hexaDemo3.setValue(time);
+    });
+}, false);
+
+</script>
+<script>
+	$(document).ready(function() {
+    	$("#datepicker").datepicker();
+
+		$('#set-button').click(function() {
+
+			var date = $('#datepicker').datepicker({ dateFormat: 'dd-mm-yy' }).val();
+			var hh = $( "#hour-select option:selected" ).text();
+			var mm = $( "#minute-select option:selected" ).text();
+			var mer = $( "#meridian-select option:selected" ).text();
+			var friend = $("#friend-select option:selected").text();
+			var uid = $("#friend-select option:selected").val()
+			console.log(uid, friend)
+			$.get('/setalarm', {hours: hh , mins: mm, meridian: mer, date:date, friend:friend, uid:uid}, function(result){
+					alert(result);
+				});
+		});
+	})
+</script>
+
+<p></p>
+<div id="addfriend">
+Add New Friend
+<form method="POST" action="/">
+    {{ newfriend.hidden_tag() }}
+    {{ newfriend.email.label }} {{ newfriend.email(size=50)}}
+
+    <input type="submit" name='btn' value="Add Friend">
+</form> 
+</div>
+<p></p>
+
+<div id="friends">
+<h2> Friend List</h2>
+
+<p>Friend - Allows Alerts - Can Send Alerts</p>
+{% if permissions %}
+	{% for friend in permissions %}
+	<p>{{friend[0]}} - <a href="#" onclick="to({{friend[3]}})">{{friend[1]}}</a> - <a href="#" onclick="from({{friend[3]}})">{{friend[2]}}</a></p>
+	{% endfor %}
+{% endif %}
+
+</div>
+
+<script>
+function to(id) {
+	console.log(id)
+}
+
+function from(id) {
+	console.log(id)
+}
+</script>
+
 
 <p><a href="/logout">Log Out</a></p>
 </body>
