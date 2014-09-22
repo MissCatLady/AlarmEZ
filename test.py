@@ -7,7 +7,9 @@ from flask.ext.scrypt import generate_password_hash, generate_random_salt, check
 from datetime import datetime
 
 app = Flask(__name__)
-engine = create_engine('postgresql://localhost:5432/alarmdb', pool_size=20, max_overflow=0)
+online= 'postgres://paajhmcznlywin:F9igJgOjxTy9x75N6ZVUCAerzv@ec2-54-204-42-178.compute-1.amazonaws.com:5432/d1gsqisf7lo1dd'
+offline='postgresql://localhost:5432/alarmdb'
+engine = create_engine(online, pool_size=20, max_overflow=0)
 metadata = MetaData(bind=engine)
 app.config.update(
 	DEBUG=True,
