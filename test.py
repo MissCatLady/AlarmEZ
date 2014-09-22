@@ -44,12 +44,11 @@ def index():
 	signup = SignUp(prefix="signup")
 	login = LogIn(prefix="login")
 	newfriend = NewFriend(prefix="friend")
-	friends = getfriends()
 		
 	if request.method =='GET':
 		user = validate_login();
 		if(user):
-
+			friends = getfriends(user.uid)
 			
 			return render_template('dashboard.html', username=user.username, user=user, friends=friends, newfriend=newfriend, permissions=getpermissions())
 		
@@ -135,6 +134,41 @@ def getalarms():
 	user_alarms = alarms.select(alarms.c.uid == user and alarms.c.exp == 'false').execute()
 	return render_template('alarms.xml', user_alarms=user_alarms)
 
+@app.route('/toggle', methods=('GET', 'POST'))
+def toggle():
+
+	user = validate_login()
+	if (user):
+
+		# allow msg later
+		friend_uid = request.args.get('friend')
+		permission_type = request.args.get('type')
+		permission = request.args.get('permission')
+
+		if (permission=="Yes"):
+			permission = ['false', "No"]
+			print permission
+		elif(permission=="No"):
+			permission = ['true', "Yes"]
+			print permission
+
+		if (permission_type == "F"):
+			print "updating from"
+			permission_update = update(friend).where(friend.c.id2 == friend_uid and friend.c.id1 == user.id).values(permission = permission[0])
+			connection = engine.connect()
+			connection.execute(permission_update)
+			connection.close()
+			return make_response(permission[1])
+		else:
+			print "updating to"
+			permission_update = update(friend).where(friend.c.id1 == friend_uid and friend.c.id2 == user.id).values(permission= permission[0])
+			connection = engine.connect()
+			connection.execute(permission_update)
+			connection.close()
+			return make_response(permission[1])
+		
+	return redirect('/logout')
+
 @app.route('/logout')
 def logout():
 
@@ -178,8 +212,8 @@ def dashboard(email, password):
 
 
 def addfriend(newFriend):
-	friends = getfriends()
 	user = validate_login()
+	friends = getfriends(users.uid)
 	new_friend = users.select(users.c.email == newFriend.email.data).execute().first()
 
 	if (new_friend and friend.select(friend.c.id1 == new_friend.uid and friend.c.id2 == user.uid).execute().first() ):
@@ -198,36 +232,47 @@ def addfriend(newFriend):
 		return "friend not registered"
 
 	
-def getfriends():
+def getfriends(uid):
 	#get friendlist
 	friends = Table('detailed_friends', metadata, autoload=True)
-	friend_choices = friends.select(friends.c.permission == True).execute()
+	friend_choices = friends.select(friends.c.id2 == uid and friends.c.permission == True).execute()
 	return friend_choices
 
 def getpermissions():
 
 	permissions=[]
 	user = validate_login()
-	friendlist = getfriends()
+	friendlist = getfriends(user.uid)
 
 	for f in friendlist:
-		alert_them = friend.select(friend.c.id1 == f.id1 and friend.c.id2 == user.uid and permission==True).execute().first()
-		alert_you = friend.select(friend.c.id1 == user.uid and friend.c.id2 == f.id1 and permission==True).execute().first()
 
-		if (alert_them):
+	
+		print [f.id1, user.uid]
+		alert_you = friend.select(friend.c.id1 == f.id1 and friend.c.id2 == user.uid).execute().first()
+		print alert_you
+		
+		alert_them = friend.select(friend.c.id2 == f.id1 and friend.c.id1 == user.uid).execute().first()
+		print alert_them
+
+		
+
+		print "----"
+		if (alert_them.permission):
 			alert_them = "Yes"
 		else: 
 			alert_them = "No"
 
-		if (alert_you):
+		if (alert_you.permission):
 			alert_you = "Yes"
 		else:
 			alert_you = "No"
 
+
 		permissions.append([f.username, alert_them, alert_you, f.id1])
 	
-
 	return permissions
+
+
 
 if __name__ == '__main__':
 	app.run()

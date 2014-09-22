@@ -136,6 +136,25 @@ document.addEventListener('DOMContentLoaded', function(){
 				});
 		});
 	})
+
+	function toggle(id, type, permission) {
+		console.log(id,type,permission)
+
+		var stype = "'" + type + "'"
+		var spermission = "'" + permission + "'"
+		var str_start = '<a href="#" onclick="toggle(' + id + ',' + stype + ',' 
+		var after_perm =  ')" id="' + type + id + '">'
+		var str_end = '</a>'
+		$.get('/toggle', {friend:id, type:type, permission:permission}, function(res) {
+			if (res) {
+				console.log(res);
+				var perm = "'" + res + "'"
+				$("#"+type+id).replaceWith(str_start+perm+after_perm+res+str_end);
+			
+			}
+		});
+	}
+
 </script>
 
 <p></p>
@@ -150,27 +169,24 @@ Add New Friend
 </div>
 <p></p>
 
+
+
 <div id="friends">
 <h2> Friend List</h2>
+
+
 
 <p>Friend - Allows Alerts - Can Send Alerts</p>
 {% if permissions %}
 	{% for friend in permissions %}
-	<p>{{friend[0]}} - <a href="#" onclick="to({{friend[3]}})">{{friend[1]}}</a> - <a href="#" onclick="from({{friend[3]}})">{{friend[2]}}</a></p>
+		<p>{{friend[0]}} - <a href="#" onclick="toggle({{friend[3]}},'T','{{friend[1]}}')" id="T{{friend[3]}}">{{friend[1]}}</a> - <a href="#" onclick="toggle({{friend[3]}}, 'F', '{{friend[1]}}')" id="F{{friend[3]}}">{{friend[2]}}</a></p>
+
 	{% endfor %}
 {% endif %}
 
 </div>
 
-<script>
-function to(id) {
-	console.log(id)
-}
 
-function from(id) {
-	console.log(id)
-}
-</script>
 
 
 <p><a href="/logout">Log Out</a></p>
