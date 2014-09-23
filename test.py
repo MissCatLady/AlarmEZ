@@ -244,6 +244,7 @@ def addfriend(newFriend):
 	requests = getrequests(user.uid)
 	new_friend = users.select(users.c.email == newFriend.email.data).execute().first()
 
+	#no object len, need to fix
 	if (new_friend and len(friend.select(friend.c.id1 == new_friend.uid and friend.c.id2 == user.uid).execute().first())==0 ):
 		msg = new_friend.username + " is already in your friendlist."
 		return render_template('dashboard.html', username=user.username, alert=msg, newfriend=newFriend, friends=friends, permissions=getpermissions(), requests=requests)
