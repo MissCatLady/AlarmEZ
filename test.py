@@ -4,7 +4,7 @@ from flask.ext.wtf import Form
 from wtforms import StringField, PasswordField, SelectField
 from wtforms.validators import DataRequired, Email
 from flask.ext.scrypt import generate_password_hash, generate_random_salt, check_password_hash
-from datetime import datetime
+import datetime
 
 app = Flask(__name__)
 online= 'postgres://paajhmcznlywin:F9igJgOjxTy9x75N6ZVUCAerzv@ec2-54-204-42-178.compute-1.amazonaws.com:5432/d1gsqisf7lo1dd'
@@ -51,8 +51,9 @@ def index():
 		user = validate_login();
 		if(user):
 			friends = getfriends(user.uid)
+			requests = getrequests(user.uid)
 			
-			return render_template('dashboard.html', username=user.username, user=user, friends=friends, newfriend=newfriend, permissions=getpermissions())
+			return render_template('dashboard.html', username=user.username, user=user, friends=friends, newfriend=newfriend, permissions=getpermissions(), requests=requests)
 		
 		return render_template('index.html', signup=signup, login=login)
 	else:
@@ -63,7 +64,7 @@ def index():
 		elif signup.validate_on_submit() and request.form['btn']=='Sign Up':
 			print "new user"
 			#TODO validate unique email
-			return new_user(signup.email.data, signup.username.data, signup.password.data)
+			return new_user(signup.email.data, signup.username.data, signup.password.data, newfriend)
 
 		elif newfriend.validate_on_submit() and request.form['btn'] == 'Add Friend':
 			return addfriend(newfriend)
@@ -73,7 +74,7 @@ def index():
 
 
 @app.route('/registration')
-def new_user(email, username, password):
+def new_user(email, username, password, newfriend):
 
 	#salt + hashing
 	salt = generate_random_salt()
@@ -88,7 +89,7 @@ def new_user(email, username, password):
 	print res.inserted_primary_key
 	connection.close()
 	
-	resp = make_response(render_template('dashboard.html', alert="Thanks for registering!", username=username))
+	resp = make_response(render_template('dashboard.html', alert="Thanks for registering!", username=username, newfriend=newfriend))
 	resp.set_cookie('session_token', session_token);
 	return resp;
 	
@@ -145,30 +146,53 @@ def toggle():
 		# allow msg later
 		friend_uid = request.args.get('friend')
 		permission_type = request.args.get('type')
-		permission = request.args.get('permission')
+		permissions = request.args.get('permission')
 
-		if (permission=="Yes"):
+		if (permissions=="Yes"):
 			permission = ['false', "No"]
 			print permission
-		elif(permission=="No"):
+		elif(permissions=="No"):
 			permission = ['true', "Yes"]
 			print permission
 
 		if (permission_type == "F"):
 			print "updating from"
-			permission_update = update(friend).where(friend.c.id2 == friend_uid and friend.c.id1 == user.id).values(permission = permission[0])
-			connection = engine.connect()
-			connection.execute(permission_update)
-			connection.close()
+
+			if (len(friend.select(friend.c.id2 == friend_uid and friend.c.id1 == user.id and friend.c.request==1).execute().first()) == 0):
+				permission_update = update(friend).where(friend.c.id2 == friend_uid and friend.c.id1 == user.id and friend.c.request==1).values(permission = permission[0])
+				connection = engine.connect()
+				connection.execute(permission_update)
+				connection.close()
+			else:
+				permission[1] = permissions
+
 			return make_response(permission[1])
 		else:
 			print "updating to"
-			permission_update = update(friend).where(friend.c.id1 == friend_uid and friend.c.id2 == user.id).values(permission= permission[0])
-			connection = engine.connect()
-			connection.execute(permission_update)
-			connection.close()
+			if (len(friend.select(friend.c.id1 == friend_uid and friend.c.id2 == user.id and friend.c.request==1).execute().first()) == 0):
+				permission_update = update(friend).where(friend.c.id1 == friend_uid and friend.c.id2 == user.id and friend.c.request==1).values(permission= permission[0])
+				connection = engine.connect()
+				connection.execute(permission_update)
+				connection.close()
+			else:
+				permission[1] = permissions
 			return make_response(permission[1])
 		
+	return redirect('/logout')
+
+@app.route('/reply', methods=('GET', 'POST'))
+def reply():
+	user = validate_login()
+	if (user):
+		uid = request.args.get('id')
+		ans = request.args.get('ans')
+
+		if (ans =="YES"):
+			friend_update = update(friend).where(friend.c.id1 == uid and friend.c.id2 == user.uid).values(request=1)
+		else:
+			#TODO deletes
+			friend_update = update(friend).where(friend.c.id1 == uid and friend.c.id2 == user.uid).values(request=0)
+
 	return redirect('/logout')
 
 @app.route('/logout')
@@ -215,20 +239,22 @@ def dashboard(email, password):
 
 def addfriend(newFriend):
 	user = validate_login()
-	friends = getfriends(users.uid)
+	friends = getfriends(user.uid)
+	requests = getrequests(user.uid)
 	new_friend = users.select(users.c.email == newFriend.email.data).execute().first()
 
-	if (new_friend and friend.select(friend.c.id1 == new_friend.uid and friend.c.id2 == user.uid).execute().first() ):
+	if (new_friend and len(friend.select(friend.c.id1 == new_friend.uid and friend.c.id2 == user.uid).execute().first())==0 ):
 		msg = new_friend.username + " is already in your friendlist."
-		return render_template('dashboard.html', username=user.username, alert=msg, newfriend=newFriend, friends=friends, permissions=getpermissions())
+		return render_template('dashboard.html', username=user.username, alert=msg, newfriend=newFriend, friends=friends, permissions=getpermissions(), requests=requests)
 	elif (new_friend):
+		friends = getfriends(user.uid)
 		friend_entry = friend.insert().values(id1=new_friend.uid, id2=user.uid, request=2)
 		connection = engine.connect()
 		res = connection.execute(friend_entry)
 		connection.close()
 		print ["added", new_friend.username]
 		msg = new_friend.username + " has been added to your friends."
-		return render_template('dashboard.html', username=user.username, alert=msg, newfriend=newFriend, friends=friends, permission=getpermissions())
+		return render_template('dashboard.html', username=user.username, alert=msg, newfriend=newFriend, friends=friends, permission=getpermissions(), requests=requests)
 	else:
 		#TODO: SEND EMAIL
 		return "friend not registered"
@@ -259,12 +285,12 @@ def getpermissions():
 		
 
 		print "----"
-		if (alert_them.permission):
+		if (alert_them and alert_them.permission):
 			alert_them = "Yes"
 		else: 
 			alert_them = "No"
 
-		if (alert_you.permission):
+		if (alert_you and alert_you.permission):
 			alert_you = "Yes"
 		else:
 			alert_you = "No"
@@ -273,6 +299,13 @@ def getpermissions():
 		permissions.append([f.username, alert_them, alert_you, f.id1])
 	
 	return permissions
+
+def getrequests(uid):
+	friends = Table('detailed_friends', metadata, autoload=True)
+	friend_requests = friends.select(friends.c.id2 == uid and friends.c.request == 2).execute()
+	return friend_requests
+
+
 
 
 

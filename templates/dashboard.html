@@ -17,6 +17,14 @@
 <p>{{alert}}</p>
 {% endif %}
 
+{% if requests %}
+{% for r in requests %}
+<span id="R"+{{r.uid}}>
+<p>{{r.username}} wants to be your friend <a href="#" onclick="newfriend('YES', '{{r.username}}', '{{r.uid}}')">Accept</a> <a href="#" onclick="newfriend('NO', '{{r.username}}', '{{r.uid}}')">Decline</a> </p>
+</span>
+{% endfor %}
+{% endif %}
+
 <p>hello {{ username }}</p>
 
 <div id="notifications">
@@ -153,6 +161,15 @@ document.addEventListener('DOMContentLoaded', function(){
 			
 			}
 		});
+	}
+
+	function newfriend(ans, username, id) {
+		
+		$.get('/reply', {ans: ans}, function(res) {
+			if (res) {
+				$("#R"+id).replaceWith("You have " + res + " " + username + "'s request.")
+			}
+		})
 	}
 
 </script>
