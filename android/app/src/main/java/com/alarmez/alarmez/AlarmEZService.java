@@ -17,20 +17,37 @@ import android.media.MediaPlayer;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 
+/**
+ * Background service to check for and run alarms.
+ */
 public class AlarmEZService extends Service {
-	
+
+    public class AlarmEZBinder extends Binder {
+        AlarmEZService getService(){
+            return AlarmEZService.this;
+        }
+    }
+    private final IBinder mBinder = new AlarmEZBinder();
+
+    //Timer interval length.
+    private static int ALARM_TIMER = 5000;
+
+    //Timer to run alarm check every ALARM_TIMER milliseconds.
 	private Timer mTimer = null;
 	private Handler mHandler = new Handler();
+
+    //Ringtone Manager to load ringtones.
 	RingtoneManager ringtoneManager = new RingtoneManager(this);
 	NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this);
-	
+
+    //MediaPlayer that plats alarm.
 	public static MediaPlayer mediaPlayer;
-	public static Ringtone r;
 	
 	class TimeDisplayTimerTask extends TimerTask {
 		public AlarmEZService host;
@@ -41,6 +58,10 @@ public class AlarmEZService extends Service {
 		
         @Override
         public void run() {
+
+            //TODO: Check server for alarms.
+            //Run alarm if any alarms activated.
+
             // run on another thread
             mHandler.post(new Runnable() {
  
@@ -53,7 +74,10 @@ public class AlarmEZService extends Service {
         }
  
     }
-	
+
+    /**
+     * Creates an alarm notification and plays alarm.
+     */
 	public void playAlarm(){
 		//Create notification.
     	mBuilder.setSmallIcon(R.drawable.ic_launcher)
@@ -61,8 +85,8 @@ public class AlarmEZService extends Service {
                 .setContentText("WAKE UP")
                 .setAutoCancel(true)
                 .setDefaults(Notification.DEFAULT_LIGHTS | Notification.FLAG_AUTO_CANCEL);
-    	
-    	PendingIntent i=PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
+
+    	PendingIntent i = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
     	mBuilder.setContentIntent(i);
                 
         // Creates an explicit intent for an Activity in your app
@@ -93,8 +117,6 @@ public class AlarmEZService extends Service {
 
         
         Uri ringtoneUri = Uri.parse(ringtone);
-
-        //r.play();
         
         if(mediaPlayer != null)
         	mediaPlayer.reset();
@@ -104,13 +126,24 @@ public class AlarmEZService extends Service {
         	mediaPlayer.setAudioStreamType(AudioManager.STREAM_RING);
 	        mediaPlayer.setDataSource(getApplicationContext(), ringtoneUri);
 	        mediaPlayer.prepare();
-	        //mediaPlayer.start();
+	        mediaPlayer.start();
         }
         catch(Exception ex){
         	
         	System.out.println("Failing: " + ex.getMessage());
         }
+        System.out.println("Alarm launched");
 	}
+
+    /**
+     * Stop alarm sound from playing.
+     */
+    public void stopAlarm(){
+        System.out.println("Stopping alarm");
+        if(mediaPlayer != null){
+            mediaPlayer.stop();
+        }
+    }
 	
 	@Override
 	public void onCreate() {
@@ -119,7 +152,9 @@ public class AlarmEZService extends Service {
 	
 	@Override
 	public void onDestroy(){
+        System.out.println("Service being destroyed.");
 		if(mediaPlayer != null){
+            mediaPlayer.stop();
 			mediaPlayer.reset();
 		}
 	}
@@ -134,17 +169,18 @@ public class AlarmEZService extends Service {
             // recreate new
             mTimer = new Timer();
         }
-        // schedule task
-        mTimer.scheduleAtFixedRate(new TimeDisplayTimerTask(this), 6000, 6000);
+
+        //Schedule task every ALARM_TIMER
+        mTimer.scheduleAtFixedRate(new TimeDisplayTimerTask(this), ALARM_TIMER, ALARM_TIMER);
         super.onStartCommand(intent, flags, startId);
-		
-        mediaPlayer = new MediaPlayer();
+
+        if(mediaPlayer == null)
+            mediaPlayer = new MediaPlayer();
 		return START_STICKY;
 	}
 
 	@Override
 	public IBinder onBind(Intent intent) {
-		// TODO for communication return IBinder implementation
-		return null;
+        return mBinder;
 	}
 }
