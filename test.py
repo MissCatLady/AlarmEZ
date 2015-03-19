@@ -1,4 +1,4 @@
-from flask import Flask, make_response, render_template, redirect, request, flash, session, url_for, escape
+from flask import Flask, make_response, render_template, redirect, request, flash, session, url_for, escape, abort
 from sqlalchemy import *
 from flask.ext.wtf import Form
 from wtforms import StringField, PasswordField, SelectField
@@ -6,11 +6,13 @@ from wtforms.validators import DataRequired, Email
 from flask.ext.scrypt import generate_password_hash, generate_random_salt, check_password_hash
 import datetime
 import os
+import string
+import random
 
 app = Flask(__name__)
 online= 'postgres://paajhmcznlywin:F9igJgOjxTy9x75N6ZVUCAerzv@ec2-54-204-42-178.compute-1.amazonaws.com:5432/d1gsqisf7lo1dd'
-offline='postgresql://localhost:5432/alarmdb'
-engine = create_engine(online, pool_size=20, max_overflow=0)
+offline='mysql://root:@localhost:3306/alarmdb'
+engine = create_engine(offline, pool_size=20, max_overflow=0)
 metadata = MetaData(bind=engine)
 app.config.update(
 	DEBUG=True,
@@ -27,6 +29,9 @@ def validate_login():
 		user = users.select(users.c.session_token == session_token).execute().first()
 		return user
 	return None
+
+def validate_app_login(username, app_token):
+	return users.select(users.c.username == username and users.c.app_token == app_token).execute().first()
 
 class SignUp(Form):
 	username = StringField('username', validators=[DataRequired()])
@@ -74,17 +79,23 @@ def index():
 			return render_template('index.html', signup=signup)
 
 
+def generate_random_app_token():
+	s = string.lowercase + string.digits
+	return ''.join(random.sample(s, 6))
+
 @app.route('/registration')
 def new_user(email, username, password, newfriend):
 
 	#salt + hashing
 	salt = generate_random_salt()
+	app_token = generate_random_app_token()
 	password = generate_password_hash(password, salt)
 	session_token = generate_password_hash(email, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 	
 	#insert user information
 	user_entry = users.insert().values(username=username, email=email, 
-		password=password, salt=salt, session_token = session_token)
+		password=password, salt=salt, session_token = session_token,
+	    app_token=app_token)
 	connection = engine.connect()
 	res = connection.execute(user_entry)
 	print res.inserted_primary_key
@@ -308,8 +319,17 @@ def getrequests(uid):
 	return friend_requests
 
 
+@app.route('/api/alarms/<username>/<app_token>/')
+def api(username = None, app_token = None):
+	user = validate_app_login(username, app_token)
+	if (user):
+	    return 'List of alarms for: ' + username + ' ' + app_token
+	else:
+		abort(403)
 
-
+@app.errorhandler(403)
+def forbidden(e):
+	return 'Access Denied', 403
 
 if __name__ == '__main__':
 	port = int(os.environ.get('PORT', 5000))
